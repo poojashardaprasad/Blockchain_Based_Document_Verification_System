@@ -27,12 +27,12 @@ const initBlockchain = async () => {
     if (contract) return { web3, contract, account };
 
     try {
-        const rpcUrl = (process.env.BLOCKCHAIN_RPC_URL || process.env.SEPOLIA_RPC_URL || 'http://127.0.0.1:7545').trim();
+        const rpcUrl = (process.env.SEPOLIA_RPC_URL || process.env.BLOCKCHAIN_RPC_URL || 'http://127.0.0.1:7545').trim();
         console.log('[BLOCKCHAIN] Connecting to RPC:', rpcUrl);
         web3 = new Web3(new Web3.providers.HttpProvider(rpcUrl));
 
-        // Support both PRIVATE_KEY and DEPLOYER_PRIVATE_KEY
-        let rawKey = (process.env.PRIVATE_KEY || process.env.DEPLOYER_PRIVATE_KEY || '').trim();
+        // Standardized key support: PRIVATE_KEY, with SEPOLIA_PRIVATE_KEY and DEPLOYER_PRIVATE_KEY fallbacks
+        let rawKey = (process.env.PRIVATE_KEY || process.env.SEPOLIA_PRIVATE_KEY || process.env.DEPLOYER_PRIVATE_KEY || '').trim();
         var accountToUse = null;
 
         if (rawKey) {

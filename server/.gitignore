@@ -1,0 +1,15 @@
+# Environment variables & secrets
+.env
+.env.*
+*.env
+!*.env.example
+
+# Temporary uploads and generated certificates
+uploads/*
+!uploads/.gitkeep
+certificates/*
+!certificates/.gitkeep
+
+# Logs
+logs/
+*.log
