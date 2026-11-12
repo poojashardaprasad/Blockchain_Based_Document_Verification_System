@@ -1,0 +1,36 @@
+=== HASH DEBUG START ===
+DB Proof Hash: 66eb9b51e51d62919ffdd4b43a7b8b22317f7f12f78fabee71c6cc718618f87a
+--- Current Proof Object (from DB) ---
+{
+  "expiry_date": "2026-01-21T18:30:00.000Z",
+  "verified_at": "2026-01-05T15:47:20.258Z",
+  "block_number": 10,
+  "blockchain_tx": "0x3a9046521c164a75f436f68ab35e0a0df4f7dd00396462a93a07653af0ad49d1",
+  "document_hash": "0x3f3e28a80109fbd2b4c429265ae045a5e54cbf65adf794da622333da7cd80e95",
+  "verifier_type": "public",
+  "system_version": "v1.0",
+  "institution_name": "uity",
+  "verification_result": "VALID"
+}
+--- Deterministic JSON (Recomputed) ---
+{"block_number":10,"blockchain_tx":"0x3a9046521c164a75f436f68ab35e0a0df4f7dd00396462a93a07653af0ad49d1","document_hash":"0x3f3e28a80109fbd2b4c429265ae045a5e54cbf65adf794da622333da7cd80e95","expiry_date":"2026-01-21T18:30:00.000Z","institution_name":"uity","system_version":"v1.0","verification_result":"VALID","verified_at":"2026-01-05T15:47:20.258Z","verifier_type":"public"}
+Recomputed Hash: 714c42c7f9d54176c2e2a825df04995ce4396c0101fb7cc811f610940339c07f
+MATCH: false
+
+--- Simulation of New Proof Generation ---
+Simulated Proof Object:
+{
+  "document_hash": "0x3f3e28a80109fbd2b4c429265ae045a5e54cbf65adf794da622333da7cd80e95",
+  "institution_name": "uity",
+  "verification_result": "VALID",
+  "verified_at": "2026-01-05T15:47:20.258Z",
+  "blockchain_tx": "0x3a9046521c164a75f436f68ab35e0a0df4f7dd00396462a93a07653af0ad49d1",
+  "block_number": 10,
+  "verifier_type": "public",
+  "expiry_date": "2026-01-21T18:30:00.000Z",
+  "system_version": "v1.0"
+}
+Simulated Deterministic JSON:
+{"block_number":10,"blockchain_tx":"0x3a9046521c164a75f436f68ab35e0a0df4f7dd00396462a93a07653af0ad49d1","document_hash":"0x3f3e28a80109fbd2b4c429265ae045a5e54cbf65adf794da622333da7cd80e95","expiry_date":"2026-01-21T18:30:00.000Z","institution_name":"uity","system_version":"v1.0","verification_result":"VALID","verified_at":"2026-01-05T15:47:20.258Z","verifier_type":"public"}
+Simulated Hash: 714c42c7f9d54176c2e2a825df04995ce4396c0101fb7cc811f610940339c07f
+Simulated Hash MATCHES DB Hash: false

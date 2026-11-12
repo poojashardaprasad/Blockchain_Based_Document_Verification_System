@@ -1,0 +1,6 @@
+This is a test document for blockchain verification.
+Created at: 2025-12-22
+Institution: Manual Test Institution
+Purpose: End-to-end verification testing
+
+This document will be uploaded, anchored to the blockchain, and then verified.

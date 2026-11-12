@@ -1,0 +1,74 @@
+version: '3.8'
+
+services:
+  db:
+    image: mysql:8.0
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpassword
+      MYSQL_DATABASE: doc_verify_db
+      MYSQL_USER: appuser
+      MYSQL_PASSWORD: apppassword
+    volumes:
+      - db_data:/var/lib/mysql
+      # Initialize DB with schema and seed data
+      - ./database:/docker-entrypoint-initdb.d
+    ports:
+      - "3307:3306"
+    healthcheck:
+      test: [ "CMD", "mysqladmin", "ping", "-h", "localhost" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - app-network
+
+  server:
+    build:
+      context: ./server
+      dockerfile: Dockerfile
+    volumes:
+      - ./server/uploads:/app/uploads
+      - ./server/.env:/app/.env
+      # Mount blockchain artifacts for access by server
+      - ./blockchain:/blockchain
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    environment:
+      PORT: 5000
+      DB_HOST: db
+      DB_USER: appuser
+      DB_PASSWORD: apppassword
+      DB_NAME: doc_verify_db
+      NODE_ENV: production
+      BLOCKCHAIN_RPC_URL: http://host.docker.internal:7545
+    ports:
+      - "5000:5000"
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost:5000/health" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - app-network
+
+  client:
+    build:
+      context: ./client
+      dockerfile: Dockerfile
+    ports:
+      - "3000:80"
+    depends_on:
+      - server
+    networks:
+      - app-network
+
+networks:
+  app-network:
+    driver: bridge
+
+volumes:
+  db_data:
