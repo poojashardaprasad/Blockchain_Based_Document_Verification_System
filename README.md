@@ -1,15 +1,24 @@
 # 🔐 Blockchain-Based Document Verification System
 
-[![Node.js](https://img.shields.io/badge/Node.js-18+-339933?logo=nodedotjs&logoColor=white)](https://nodejs.org)
-[![React](https://img.shields.io/badge/React-18-61DAFB?logo=react&logoColor=black)](https://reactjs.org)
-[![Solidity](https://img.shields.io/badge/Solidity-0.8.x-363636?logo=solidity&logoColor=white)](https://soliditylang.org)
-[![Hardhat](https://img.shields.io/badge/Hardhat-2.x-FFF100?logo=hardhat&logoColor=black)](https://hardhat.org)
-[![MySQL](https://img.shields.io/badge/MySQL-8.0-4479A1?logo=mysql&logoColor=white)](https://mysql.com)
-[![Docker](https://img.shields.io/badge/Docker-Compose-2496ED?logo=docker&logoColor=white)](https://docs.docker.com/compose/)
-[![License](https://img.shields.io/badge/License-MIT-green)](./LICENSE)
-[![Status](https://img.shields.io/badge/Status-Production--Ready-brightgreen)]()
+[![Frontend on Vercel](https://img.shields.io/badge/Frontend-Vercel%20Live-black?logo=vercel&logoColor=white)](https://blockchain-based-document-verificat-xi.vercel.app)
+[![Backend on Render](https://img.shields.io/badge/Backend-Render%20Live-46E3B7?logo=render&logoColor=white)](https://blockchain-doc-verify-api.onrender.com/health)
+[![Ethereum Sepolia](https://img.shields.io/badge/Blockchain-Ethereum%20Sepolia-627EEA?logo=ethereum&logoColor=white)](https://sepolia.etherscan.io/address/0x1f22F27dAdAFc8A723193635cB492Cfa9e550731)
+[![MySQL on Railway](https://img.shields.io/badge/Database-Railway%20MySQL-0B0D0E?logo=railway&logoColor=white)](https://railway.com)
+[![Status](https://img.shields.io/badge/Status-Live%20in%20Production-brightgreen)]()
 
 > A tamper-proof, full-stack document verification system that anchors SHA-256 document hashes on an Ethereum-compatible blockchain — ensuring institution-level trust, immutability, and instant fraud detection.
+
+---
+
+### 🌐 Live Production Deployment
+
+| Service | Component | Live URL / Endpoint |
+|---|---|---|
+| **Frontend** | React 19 + Vite (Vercel) | [https://blockchain-based-document-verificat-xi.vercel.app](https://blockchain-based-document-verificat-xi.vercel.app) |
+| **Backend API** | Node.js + Express (Render) | [https://blockchain-doc-verify-api.onrender.com](https://blockchain-doc-verify-api.onrender.com) |
+| **API Health Check** | System & Network Status | [https://blockchain-doc-verify-api.onrender.com/api/health](https://blockchain-doc-verify-api.onrender.com/api/health) |
+| **Smart Contract** | Ethereum Sepolia Testnet | [`0x1f22F27dAdAFc8A723193635cB492Cfa9e550731`](https://sepolia.etherscan.io/address/0x1f22F27dAdAFc8A723193635cB492Cfa9e550731) |
+| **Database** | Managed MySQL 8 (Railway) | Cloud TCP Proxy (`yamanote.proxy.rlwy.net:51908`) |
 
 ---
 
