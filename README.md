@@ -409,94 +409,104 @@ This repository is pre-configured for instant zero-downtime production deploymen
 
 ---
 
-### Step 1 · Deploy Smart Contract to Ethereum Sepolia Testnet
+### Step 1 · Smart Contract on Ethereum Sepolia Testnet
 
-1. Get a Sepolia RPC URL from [Alchemy](https://www.alchemy.com/) or [Infura](https://www.infura.io/) (free).
-2. Obtain testnet Sepolia ETH from [Google Cloud Web3 Faucet](https://cloud.google.com/application/web3/faucet/ethereum/sepolia) or [Sepolia PoW Faucet](https://sepolia-faucet.pk910.de/).
-3. Export your testnet wallet's private key.
-4. In `blockchain/`, copy `.env.example` to `.env`:
-   ```bash
-   cd blockchain
-   cp .env.example .env
-   ```
-5. Fill in `SEPOLIA_RPC_URL` and `PRIVATE_KEY` (and optionally `ETHERSCAN_API_KEY`):
-   ```env
-   SEPOLIA_RPC_URL=https://eth-sepolia.g.alchemy.com/v2/your_alchemy_key
-   PRIVATE_KEY=your_wallet_private_key_without_0x
-   ETHERSCAN_API_KEY=your_etherscan_key_optional
-   ```
-6. Run the Sepolia deployment script:
-   ```bash
-   npm run deploy:sepolia
-   ```
-7. Note the printed **DocumentRegistry deployed address**. The script automatically saves the deployed contract ABI and address to `server/contracts/DocumentRegistry.json`.
+The core smart contract `DocumentRegistry` is already compiled, tested, and **deployed live** to the Ethereum Sepolia testnet!
+
+- **Network:** Ethereum Sepolia Testnet (Chain ID: `11155111`)
+- **Deployed Contract Address:** [`0x1f22F27dAdAFc8A723193635cB492Cfa9e550731`](https://sepolia.etherscan.io/address/0x1f22F27dAdAFc8A723193635cB492Cfa9e550731)
+- **Deployment Transaction Hash:** [`0xf00c19914d81bd9d55e1981a6d4b1434d470e662ad6cf752b47f930eada5b647`](https://sepolia.etherscan.io/tx/0xf00c19914d81bd9d55e1981a6d4b1434d470e662ad6cf752b47f930eada5b647)
+- **Block Number:** `12120764`
+- **ABI & Address Export:** Automatically synchronized to `server/contracts/DocumentRegistry.json`.
+
+*(If you ever need to redeploy to your own contract instance, simply configure `blockchain/.env` and run `npm run deploy:sepolia` from the `blockchain/` folder).*
 
 ---
 
 ### Step 2 · Setup Cloud-Hosted MySQL Database
 
-Use a free managed cloud MySQL provider (such as [Aiven for MySQL](https://aiven.io/), [Railway](https://railway.app/), or [TiDB Cloud](https://tidbcloud.com/)):
+Use any managed cloud MySQL provider (such as [Aiven for MySQL](https://aiven.io/), [Railway](https://railway.app/), or [TiDB Cloud](https://tidbcloud.com/)):
 
-1. Create a MySQL database named `doc_verify_db`.
-2. Connect using your MySQL GUI (e.g. MySQL Workbench, DBeaver) or CLI and run:
+1. Provision a free MySQL database instance.
+2. The backend includes **automatic schema initialization**: on server boot, it automatically verifies and creates all 8 core tables (`institutions`, `users`, `institution_requests`, `documents`, `revoked_documents`, `verifications`, `audit_logs`, `verification_proofs`) regardless of the cloud database name!
+3. Alternatively, you can run the initialization CLI manually:
    ```bash
-   mysql -h <host> -P <port> -u <user> -p<password> doc_verify_db < database/schema.sql
-   mysql -h <host> -P <port> -u <user> -p<password> doc_verify_db < database/seed.sql
+   cd server
+   DATABASE_URL="mysql://user:password@host:port/database?ssl-mode=REQUIRED" npm run db:init
    ```
-3. Copy the database connection URI or credentials:
-   - Option A: Connection URI string: `mysql://user:password@host:port/doc_verify_db?ssl-mode=REQUIRED`
-   - Option B: Individual host, port, user, password, and database parameters.
-   *(The backend automatically activates SSL connection when connecting to remote cloud databases).*
+4. Copy your `DATABASE_URL` for the backend configuration. The backend driver automatically enables secure SSL connectivity (`rejectUnauthorized: false`).
 
 ---
 
-### Step 3 · Deploy Backend to Render
+### Step 3 · Persistent Storage for Documents & Certificates
+
+To ensure verification certificates and proof artifacts survive backend container restarts and redeployments on Render's ephemeral filesystem:
+
+1. **Architecture & Zero-Knowledge Privacy:**
+   - Raw user documents are never stored permanently on the server—only SHA-256 cryptographic hashes are calculated, anchored, and verified.
+   - Generated tamper-evident PDF certificates and machine-readable JSON proofs are stored using `server/services/storageService.js`.
+2. **Supported Cloud Storage Providers (S3-Compatible):**
+   - **Cloudflare R2** (10 GB free permanently, zero egress fees - *Recommended*)
+   - **AWS S3**
+   - **Supabase Storage** (S3 compatibility mode)
+   - **Render Persistent Disk / Local Fallback** (when no S3 credentials are configured)
+3. **Zero-Dependency Implementation:**
+   - Built with pure Node.js AWS Signature Version 4 (SigV4) — no external AWS SDK bloat.
+   - Enforces `private` ACL and supports expiring presigned download URLs via `/api/certificates/signed-url/:proofHash`.
+
+---
+
+### Step 4 · Deploy Backend to Render
 
 1. Log in to [Render.com](https://render.com).
-2. Click **New +** → **Web Service**.
-3. Connect your GitHub repository: `poojashardaprasad/Blockchain_Based_Document_Verification_System`.
-4. Configure service settings:
+2. Click **New +** → **Blueprint** and connect your GitHub repository `poojashardaprasad/Blockchain_Based_Document_Verification_System`. Render will auto-detect `render.yaml`.
+   *Or click **New +** → **Web Service** for manual setup:*
    - **Root Directory:** `server`
    - **Environment:** `Node`
    - **Build Command:** `npm install`
-   - **Start Command:** `node server.js`
+   - **Start Command:** `npm start`
+   - **Health Check Path:** `/health`
    - **Instance Type:** `Free`
-5. Under **Environment Variables**, add:
+3. Configure Environment Variables in Render:
    | Key | Value | Notes |
    |---|---|---|
-   | `NODE_ENV` | `production` | Production mode |
-   | `PORT` | `5001` | Render dynamically binds `PORT` |
-   | `DATABASE_URL` | `mysql://...` | Connection URI from Step 2 |
-   | `JWT_SECRET` | `<random-64-character-string>` | Secret key for auth tokens |
-   | `JWT_EXPIRES_IN` | `24h` | Token expiry |
-   | `CONTRACT_ADDRESS` | `0x...` | Deployed address from Step 1 |
-   | `BLOCKCHAIN_RPC_URL` | `https://eth-sepolia.g.alchemy.com/v2/...` | Sepolia RPC endpoint |
-   | `DEPLOYER_PRIVATE_KEY` | `<your-private-key>` | Wallet private key used to anchor documents |
-   | `FRONTEND_URL` | `https://<your-vercel-app>.vercel.app` | Vercel domain (set after Step 4) |
-6. Click **Deploy Web Service**.
-7. Once deployed, test your backend URL (e.g., `https://your-backend.onrender.com/api/health`).
-
-> **Tip:** You can also deploy using the included `render.yaml` Blueprint directly from the Render dashboard.
+   | `NODE_ENV` | `production` | Production environment |
+   | `PORT` | `10000` | Render port |
+   | `DATABASE_URL` | `mysql://...` | Connection string from Step 2 |
+   | `CONTRACT_ADDRESS` | `0x1f22F27dAdAFc8A723193635cB492Cfa9e550731` | Deployed Sepolia contract |
+   | `BLOCKCHAIN_RPC_URL` | `https://ethereum-sepolia-rpc.publicnode.com` | Public or Alchemy/Infura RPC |
+   | `PRIVATE_KEY` | `<your-deployer-wallet-private-key>` | With Sepolia testnet ETH for gas |
+   | `JWT_SECRET` | `<random-64-char-secret>` | Auth token encryption |
+   | `JWT_EXPIRES_IN` | `24h` | Token expiration |
+   | `CORS_ORIGIN` | `*` (or your Vercel URL) | Allowed frontend origins |
+   | `FRONTEND_URL` | `https://<your-app>.vercel.app` | For QR codes in PDF certificates |
+   | `S3_BUCKET` | `<optional-r2-or-s3-bucket>` | For persistent certificate storage |
+   | `S3_ENDPOINT` | `<optional-r2-or-s3-endpoint>` | E.g. Cloudflare R2 endpoint URL |
+   | `S3_ACCESS_KEY_ID` | `<optional-key-id>` | Cloud storage credentials |
+   | `S3_SECRET_ACCESS_KEY` | `<optional-secret-key>` | Cloud storage credentials |
+4. Click **Create Web Service** / **Apply**.
+5. Verify your deployment via `/health` or `/api/health`.
 
 ---
 
-### Step 4 · Deploy Frontend to Vercel
+### Step 5 · Deploy Frontend to Vercel
 
 1. Log in to [Vercel](https://vercel.com).
 2. Click **Add New...** → **Project**.
 3. Import your GitHub repository: `poojashardaprasad/Blockchain_Based_Document_Verification_System`.
 4. In Project Settings:
    - **Framework Preset:** `Vite`
-   - **Root Directory:** Click **Edit** and select `client`.
+   - **Root Directory:** Click **Edit** and set to `client`
    - **Build Command:** `npm run build`
    - **Output Directory:** `dist`
-   - **Install Command:** `npm install`
-5. In **Environment Variables**, configure:
+5. Under **Environment Variables**, add:
    | Key | Value |
    |---|---|
-   | `VITE_API_BASE_URL` | `https://your-backend.onrender.com/api` |
+   | `VITE_API_BASE_URL` | `https://<your-render-backend-url>.onrender.com/api` |
    | `VITE_EXPLORER_URL` | `https://sepolia.etherscan.io` |
 6. Click **Deploy**.
+7. Vercel builds the SPA and provides a global CDN URL (e.g., `https://doc-verify-client.vercel.app`).
+8. Return to Render and update `FRONTEND_URL` with your live Vercel URL.
 7. Vercel will build and deploy your site in ~30 seconds, giving you a live production URL like `https://doc-verify-client.vercel.app`.
 8. Copy your live Vercel URL and update `FRONTEND_URL` in your Render backend settings so CORS and QR code verification links point to your live site.
 

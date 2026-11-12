@@ -11,8 +11,14 @@ const institutionRoutes = require('./routes/institutionRoutes');
 const adminRoutes = require('./routes/adminRoutes');
 const documentRoutes = require('./routes/documentRoutes');
 const certificateRoutes = require('./routes/certificateRoutes');
+const { initializeDatabase } = require('./config/initDb');
 
 const app = express();
+
+// Initialize database schema asynchronously on boot
+initializeDatabase().catch((err) => {
+    console.warn('⚠️  Database schema auto-check notice:', err.message);
+});
 
 // Ensure runtime directories exist
 const uploadsDir = path.join(__dirname, 'uploads');
@@ -54,10 +60,19 @@ app.get('/', (req, res) => {
     });
 });
 
-// Health endpoint
-app.get('/health', (req, res) => {
-    res.json({ status: 'ok', timestamp: new Date().toISOString() });
-});
+// Health endpoints (/health and /api/health for monitor compatibility)
+const handleHealth = (req, res) => {
+    res.json({
+        status: 'ok',
+        service: 'Blockchain-Based Document Verification API',
+        uptime: process.uptime(),
+        contractAddress: process.env.CONTRACT_ADDRESS || '0x1f22F27dAdAFc8A723193635cB492Cfa9e550731',
+        network: 'Sepolia (11155111)',
+        timestamp: new Date().toISOString()
+    });
+};
+app.get('/health', handleHealth);
+app.get('/api/health', handleHealth);
 
 // Routes
 app.use('/api/auth', authRoutes);

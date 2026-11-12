@@ -21,7 +21,7 @@ services:
       - key: JWT_EXPIRES_IN
         value: 24h
       - key: BLOCKCHAIN_RPC_URL
-        value: https://rpc.sepolia.org
+        value: https://ethereum-sepolia-rpc.publicnode.com
       - key: CONTRACT_ADDRESS
         value: 0x1f22F27dAdAFc8A723193635cB492Cfa9e550731
       - key: PRIVATE_KEY
@@ -29,4 +29,14 @@ services:
       - key: DATABASE_URL
         sync: false
       - key: FRONTEND_URL
+        sync: false
+      - key: S3_BUCKET
+        sync: false
+      - key: S3_ENDPOINT
+        sync: false
+      - key: S3_REGION
+        value: auto
+      - key: S3_ACCESS_KEY_ID
+        sync: false
+      - key: S3_SECRET_ACCESS_KEY
         sync: false

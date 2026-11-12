@@ -127,12 +127,45 @@ exports.getCertificatePreview = async (req, res) => {
             certificate_issued_at: proofs[0].created_at,
             download_urls: {
                 pdf: `/api/certificates/download/${proofHash}`,
-                json: `/api/certificates/json/${proofHash}`
+                json: `/api/certificates/json/${proofHash}`,
+                signed_url: `/api/certificates/signed-url/${proofHash}`
             }
         });
 
     } catch (error) {
         console.error('Certificate preview error:', error);
         res.status(500).json({ message: 'Failed to load certificate preview' });
+    }
+};
+
+/**
+ * Get secure signed download URL for certificate
+ * GET /api/certificates/signed-url/:proofHash
+ */
+exports.getSignedDownloadUrl = async (req, res) => {
+    try {
+        const { proofHash } = req.params;
+        const storageService = require('../services/storageService');
+
+        const [proofs] = await db.query(
+            'SELECT id FROM verification_proofs WHERE proof_hash = ?',
+            [proofHash]
+        );
+
+        if (proofs.length === 0) {
+            return res.status(404).json({ message: 'Certificate not found' });
+        }
+
+        const filename = `certificate_${proofHash}.pdf`;
+        const signedUrl = storageService.getSignedDownloadUrl(filename, 3600);
+
+        res.json({
+            proofHash,
+            url: signedUrl,
+            expiresIn: 3600
+        });
+    } catch (error) {
+        console.error('Signed URL generation error:', error);
+        res.status(500).json({ message: 'Failed to generate signed download URL' });
     }
 };

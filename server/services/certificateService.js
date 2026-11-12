@@ -2,6 +2,7 @@ const PDFDocument = require('pdfkit');
 const QRCode = require('qrcode');
 const fs = require('fs');
 const path = require('path');
+const storageService = require('./storageService');
 
 class CertificateService {
 
@@ -28,6 +29,25 @@ class CertificateService {
         const { proofHash, proofObject } = proofData;
         const filename = `certificate_${proofHash}.pdf`;
         const filepath = path.join(this.certDir, filename);
+
+        // Check if already in local cache
+        if (fs.existsSync(filepath)) {
+            return filepath;
+        }
+
+        // Check if already in persistent cloud storage
+        try {
+            const inCloud = await storageService.fileExists(filename);
+            if (inCloud) {
+                const cloudBuffer = await storageService.getFile(filename);
+                if (cloudBuffer) {
+                    fs.writeFileSync(filepath, cloudBuffer);
+                    return filepath;
+                }
+            }
+        } catch (e) {
+            console.warn('Storage check fallback:', e.message);
+        }
 
         return new Promise(async (resolve, reject) => {
             try {
@@ -171,8 +191,17 @@ class CertificateService {
 
                 doc.end();
 
-                stream.on('finish', () => {
+                stream.on('finish', async () => {
                     console.log(`✅ PDF Certificate generated: ${filename}`);
+                    try {
+                        await storageService.storeFile({
+                            key: filename,
+                            body: filepath,
+                            contentType: 'application/pdf'
+                        });
+                    } catch (storeErr) {
+                        console.warn('Persistent storage sync notice:', storeErr.message);
+                    }
                     resolve(filepath);
                 });
                 stream.on('error', reject);
