@@ -5,12 +5,17 @@ const proofController = require('../controllers/proofController');
 const certificateController = require('../controllers/certificateController');
 const { protect, authorize } = require('../middlewares/authMiddleware');
 const { proofVerificationLimiter, certificateDownloadLimiter } = require('../middlewares/rateLimiter');
-const multer = require('multer');
-const upload = multer({ dest: 'uploads/' });
-
-// Ensure uploads dir exists (usually done in main or manually)
 const fs = require('fs');
-if (!fs.existsSync('uploads')) fs.mkdirSync('uploads');
+const path = require('path');
+const multer = require('multer');
+
+const uploadsDir = process.env.UPLOAD_DIR || path.join(__dirname, '../uploads');
+if (!fs.existsSync(uploadsDir)) fs.mkdirSync(uploadsDir, { recursive: true });
+
+const upload = multer({
+    dest: uploadsDir,
+    limits: { fileSize: 25 * 1024 * 1024 } // 25 MB max limit
+});
 
 // Document routes (existing)
 router.post('/upload', protect, authorize('uploader'), upload.single('document'), controller.uploadDocument);

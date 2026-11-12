@@ -35,7 +35,7 @@ services:
     extra_hosts:
       - "host.docker.internal:host-gateway"
     environment:
-      PORT: 5000
+      PORT: 5001
       DB_HOST: db
       DB_USER: appuser
       DB_PASSWORD: apppassword
@@ -43,12 +43,12 @@ services:
       NODE_ENV: production
       BLOCKCHAIN_RPC_URL: http://host.docker.internal:7545
     ports:
-      - "5000:5000"
+      - "5001:5001"
     depends_on:
       db:
         condition: service_healthy
     healthcheck:
-      test: [ "CMD", "curl", "-f", "http://localhost:5000/health" ]
+      test: [ "CMD", "curl", "-f", "http://localhost:5001/health" ]
       interval: 10s
       timeout: 5s
       retries: 5

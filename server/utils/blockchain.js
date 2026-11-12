@@ -1,109 +1,131 @@
-const Web3 = require('web3').default || require('web3'); // Common js import issue with Web3 v4
+const Web3 = require('web3').default || require('web3');
 const fs = require('fs');
 const path = require('path');
 require('dotenv').config();
 
-// Load Contract ABI
-// Assuming the artifact is at ../blockchain/artifacts/contracts/DocumentRegistry.sol/DocumentRegistry.json
-// Since we are in /server/utils, we go ../../blockchain/...
-const ARTIFACT_PATH = path.join(__dirname, '../../blockchain/artifacts/contracts/DocumentRegistry.sol/DocumentRegistry.json');
+// Contract Artifact locations (primary: hardhat build, fallback: server bundled copy)
+const HARDHAT_ARTIFACT_PATH = path.join(__dirname, '../../blockchain/artifacts/contracts/DocumentRegistry.sol/DocumentRegistry.json');
+const SERVER_ARTIFACT_PATH = path.join(__dirname, '../contracts/DocumentRegistry.json');
 
 let web3;
 let contract;
 let account;
 
+const loadArtifact = () => {
+    if (fs.existsSync(HARDHAT_ARTIFACT_PATH)) {
+        return JSON.parse(fs.readFileSync(HARDHAT_ARTIFACT_PATH, 'utf8'));
+    }
+    if (fs.existsSync(SERVER_ARTIFACT_PATH)) {
+        return JSON.parse(fs.readFileSync(SERVER_ARTIFACT_PATH, 'utf8'));
+    }
+    throw new Error(
+        'Contract artifact not found! Run "cd blockchain && npx hardhat compile" or ensure server/contracts/DocumentRegistry.json exists.'
+    );
+};
+
 const initBlockchain = async () => {
     if (contract) return { web3, contract, account };
 
     try {
-        const rpcUrl = process.env.BLOCKCHAIN_RPC_URL || 'http://127.0.0.1:7545';
-        console.log('Web3 Version:', Web3.version);
-        console.log('Connecting to RPC:', rpcUrl);
+        const rpcUrl = (process.env.BLOCKCHAIN_RPC_URL || process.env.SEPOLIA_RPC_URL || 'http://127.0.0.1:7545').trim();
+        console.log('[BLOCKCHAIN] Connecting to RPC:', rpcUrl);
         web3 = new Web3(new Web3.providers.HttpProvider(rpcUrl));
 
-        const privateKey = process.env.PRIVATE_KEY ? process.env.PRIVATE_KEY.trim() : null;
-        var accountToUse = null; // usage of var to ensure function scope
-        if (privateKey) {
-            console.log('Private Key Length:', privateKey.length);
+        // Support both PRIVATE_KEY and DEPLOYER_PRIVATE_KEY
+        let rawKey = (process.env.PRIVATE_KEY || process.env.DEPLOYER_PRIVATE_KEY || '').trim();
+        var accountToUse = null;
+
+        if (rawKey) {
+            if (!rawKey.startsWith('0x')) {
+                rawKey = '0x' + rawKey;
+            }
             try {
-                accountToUse = web3.eth.accounts.privateKeyToAccount(privateKey);
+                accountToUse = web3.eth.accounts.privateKeyToAccount(rawKey);
                 web3.eth.accounts.wallet.add(accountToUse);
-                console.log('Account loaded:', accountToUse.address);
+                console.log('[BLOCKCHAIN] Account loaded from private key:', accountToUse.address);
             } catch (accErr) {
-                console.error('Error loading account:', accErr);
+                console.error('[BLOCKCHAIN] Error importing private key:', accErr.message);
+                throw accErr;
             }
         } else {
-            const accounts = await web3.eth.getAccounts();
-            console.log('Ganache Accounts found:', accounts.length);
-            accountToUse = { address: accounts[0] };
+            // Ganache / local node accounts fallback
+            try {
+                const accounts = await web3.eth.getAccounts();
+                if (accounts && accounts.length > 0) {
+                    console.log('[BLOCKCHAIN] Using default node account:', accounts[0]);
+                    accountToUse = { address: accounts[0] };
+                }
+            } catch (rpcAccErr) {
+                console.warn('[BLOCKCHAIN] Could not retrieve node accounts:', rpcAccErr.message);
+            }
         }
 
-        if (!fs.existsSync(ARTIFACT_PATH)) {
-            console.error('Artifact not found');
-            return null;
-        }
+        const artifact = loadArtifact();
 
-        if (!fs.existsSync(ARTIFACT_PATH)) {
-            throw new Error('Artifact not found at: ' + ARTIFACT_PATH);
-        }
-
-        const artifact = JSON.parse(fs.readFileSync(ARTIFACT_PATH, 'utf8'));
-
-        let contractAddress = process.env.CONTRACT_ADDRESS ? process.env.CONTRACT_ADDRESS.trim() : null;
-        console.log('Account to use:', accountToUse ? accountToUse.address : 'undefined');
-        console.log('Contract Address from Env:', contractAddress);
-
+        let contractAddress = (process.env.CONTRACT_ADDRESS || (artifact && artifact.address) || '').trim();
         if (!contractAddress) {
-            throw new Error('CONTRACT_ADDRESS not set in .env');
+            throw new Error('CONTRACT_ADDRESS not configured in environment variables');
         }
 
-        // Address Normalization
+        // Normalize address
         try {
             if (!web3.utils.isAddress(contractAddress)) {
-                console.warn('Initial isAddress check failed. Attempting normalization...');
                 contractAddress = web3.utils.toChecksumAddress(contractAddress);
-                console.log('Normalized Address:', contractAddress);
             }
         } catch (addrErr) {
-            console.error('Address normalization failure:', addrErr.message);
-            // Verify explicitly again
             if (!web3.utils.isAddress(contractAddress)) {
-                throw new Error('Invalid Ethereum Address: ' + contractAddress);
+                throw new Error('Invalid Ethereum Contract Address: ' + contractAddress);
             }
         }
 
         contract = new web3.eth.Contract(artifact.abi, contractAddress);
         account = accountToUse;
-        console.log('Blockchain Initialized Successfully. Wallet:', account.address);
+        console.log('[BLOCKCHAIN] Initialized successfully. Contract:', contractAddress);
         return { web3, contract, account };
     } catch (e) {
-        console.error('BLOCKCHAIN INIT FATAL ERROR:', e);
-        // Throwing here allows the caller to handle it (or crash logs to show it)
-        // instead of returning null and causing destructuring error.
+        console.error('[BLOCKCHAIN] Init Error:', e.message);
         throw e;
     }
 };
 
 exports.anchorHash = async (docHash) => {
     const { contract, account, web3 } = await initBlockchain();
-    if (!contract) throw new Error('Blockchain not initialized');
+    if (!contract) throw new Error('Blockchain service is unavailable');
+    if (!account || !account.address) {
+        throw new Error('No funded wallet/account available to anchor document. Check PRIVATE_KEY in .env');
+    }
 
     try {
-        // Estimate Gas
-        const gas = await contract.methods.anchorDocument(docHash).estimateGas({ from: account.address });
+        // Ensure 0x prefix for bytes32
+        const formattedHash = docHash.startsWith('0x') ? docHash : '0x' + docHash;
 
-        // Send Tx
-        const tx = await contract.methods.anchorDocument(docHash).send({
+        // Estimate gas
+        const gas = await contract.methods.anchorDocument(formattedHash).estimateGas({ from: account.address });
+        
+        // Get current gas price for testnet reliability
+        let gasPrice;
+        try {
+            gasPrice = await web3.eth.getGasPrice();
+        } catch (gpErr) {
+            // fallback
+        }
+
+        const txOptions = {
             from: account.address,
-            gas: Math.floor(Number(gas) * 1.2) // Convert BigInt to Number before calculation
-        });
+            gas: Math.floor(Number(gas) * 1.3)
+        };
+        if (gasPrice) {
+            txOptions.gasPrice = gasPrice;
+        }
+
+        const tx = await contract.methods.anchorDocument(formattedHash).send(txOptions);
 
         return {
             txHash: tx.transactionHash,
-            blockNumber: Number(tx.blockNumber) // Convert BigInt to Number
+            blockNumber: Number(tx.blockNumber)
         };
     } catch (error) {
-        console.error('Anchor Error:', error);
+        console.error('[BLOCKCHAIN] Anchor Error:', error.message);
         throw error;
     }
 };
@@ -113,26 +135,45 @@ exports.verifyHash = async (docHash) => {
     try {
         blockchainData = await initBlockchain();
     } catch (e) {
-        console.error('VerifyHash: Blockchain Init Failed:', e.message);
+        console.error('[BLOCKCHAIN] VerifyHash: Connection error:', e.message);
         throw new Error('Blockchain Service Unavailable');
     }
     const { contract } = blockchainData;
 
     try {
-        const result = await contract.methods.verifyDocument(docHash).call();
-        // Returns: [bool, address issuer, uint256 timestamp, uint8 status, string reason]
-        // Mapping in Solidity: enum is returned as uint8
+        const formattedHash = docHash.startsWith('0x') ? docHash : '0x' + docHash;
+        const result = await contract.methods.verifyDocument(formattedHash).call();
+        // Returns: [bool exists, address issuer, uint256 timestamp, uint8 status, string reason]
         return {
-            exists: result[0],
+            exists: Boolean(result[0]),
             issuer: result[1],
-            timestamp: Number(result[2]), // Convert BigInt to Number
-            status: result[3].toString(), // 0=Active, 1=Revoked
-            revocationReason: result[4]
+            timestamp: Number(result[2]),
+            status: result[3].toString(), // 0 = Active, 1 = Revoked
+            revocationReason: result[4] || ''
         };
     } catch (error) {
-        // If not found, it might revert or return false depending on logic.
-        // Our contract reverts with "Document not found" if using verifyDocument wrapper?
-        // No, docExists check reverts.
+        // Contract reverts with "Document not found" if document does not exist
         return { exists: false };
     }
 };
+
+exports.revokeHash = async (docHash, reason = 'Revoked by authority') => {
+    const { contract, account, web3 } = await initBlockchain();
+    if (!contract || !account) throw new Error('Blockchain service not ready');
+
+    const formattedHash = docHash.startsWith('0x') ? docHash : '0x' + docHash;
+    const gas = await contract.methods.revokeDocument(formattedHash, reason).estimateGas({ from: account.address });
+    const gasPrice = await web3.eth.getGasPrice();
+
+    const tx = await contract.methods.revokeDocument(formattedHash, reason).send({
+        from: account.address,
+        gas: Math.floor(Number(gas) * 1.3),
+        gasPrice: gasPrice
+    });
+
+    return {
+        txHash: tx.transactionHash,
+        blockNumber: Number(tx.blockNumber)
+    };
+};
+

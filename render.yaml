@@ -1,0 +1,32 @@
+services:
+  - type: web
+    name: blockchain-doc-verify-api
+    runtime: node
+    plan: free
+    region: oregon
+    rootDir: server
+    buildCommand: npm install
+    startCommand: npm start
+    healthCheckPath: /health
+    autoDeploy: true
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 10000
+      - key: CORS_ORIGIN
+        value: '*'
+      - key: JWT_SECRET
+        generateValue: true
+      - key: JWT_EXPIRES_IN
+        value: 24h
+      - key: BLOCKCHAIN_RPC_URL
+        value: https://rpc.sepolia.org
+      - key: CONTRACT_ADDRESS
+        sync: false
+      - key: PRIVATE_KEY
+        sync: false
+      - key: DATABASE_URL
+        sync: false
+      - key: FRONTEND_URL
+        sync: false

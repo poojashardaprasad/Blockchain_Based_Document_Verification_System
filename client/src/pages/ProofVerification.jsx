@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { ShieldCheck, CheckCircle2, XCircle, Loader2, FileText, ExternalLink, Download, AlertTriangle } from 'lucide-react';
-import api from '../api/axios';
+import api, { SERVER_ROOT_URL } from '../api/axios';
 
 export default function ProofVerification() {
     const { proofHash } = useParams();
@@ -180,7 +180,7 @@ export default function ProofVerification() {
                                     <div className="flex justify-between items-center">
                                         <span className="text-sm text-slate-600 font-medium">Transaction Hash:</span>
                                         <a
-                                            href={`https://etherscan.io/tx/${proofData.proof.blockchain_tx}`}
+                                            href={`https://sepolia.etherscan.io/tx/${proofData.proof.blockchain_tx}`}
                                             target="_blank"
                                             rel="noopener noreferrer"
                                             className="flex items-center gap-1 text-indigo-600 hover:text-indigo-700 font-mono text-xs"
@@ -222,7 +222,7 @@ export default function ProofVerification() {
                             {/* Download Options */}
                             <div className="flex gap-3">
                                 <a
-                                    href={`http://${window.location.hostname}:5001/api/certificates/download/${proofHash}`}
+                                    href={`${SERVER_ROOT_URL}/api/certificates/download/${proofHash}`}
                                     className="flex-1 flex items-center justify-center gap-2 px-6 py-4 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl shadow-lg hover:shadow-xl transition-all"
                                     download
                                 >
@@ -231,7 +231,7 @@ export default function ProofVerification() {
                                 </a>
 
                                 <a
-                                    href={`http://${window.location.hostname}:5001/api/certificates/json/${proofHash}`}
+                                    href={`${SERVER_ROOT_URL}/api/certificates/json/${proofHash}`}
                                     className="px-6 py-4 bg-cyan-600 hover:bg-cyan-700 text-white font-bold rounded-xl shadow-lg hover:shadow-xl transition-all"
                                     download
                                 >

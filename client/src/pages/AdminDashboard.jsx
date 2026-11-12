@@ -192,7 +192,7 @@ const AdminDashboard = () => {
                                         <div className="text-right">
                                             <p className="text-xs text-slate-400">{new Date(doc.created_at).toLocaleDateString()}</p>
                                             {doc.tx_hash && (
-                                                <a href={`https://etherscan.io/tx/${doc.tx_hash}`} target="_blank" rel="noreferrer"
+                                                <a href={`https://sepolia.etherscan.io/tx/${doc.tx_hash}`} target="_blank" rel="noreferrer"
                                                     className="text-xs text-indigo-600 hover:underline flex items-center gap-1 justify-end">
                                                     View TX <ExternalLink className="w-3 h-3" />
                                                 </a>

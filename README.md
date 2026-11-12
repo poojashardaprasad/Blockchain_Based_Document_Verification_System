@@ -283,6 +283,18 @@ Blockchain-Based-Document-Verification-System/
 | `result` | ENUM('valid','invalid','revoked') | Verification outcome |
 | `verified_at` | TIMESTAMP | Verification timestamp |
 
+### `verification_proofs`
+
+| Column | Type | Description |
+|---|---|---|
+| `id` | INT PK | Auto-increment primary key |
+| `verification_id` | INT FK → verifications.id | Parent verification event (CASCADE on delete) |
+| `proof_hash` | CHAR(64) | SHA-256 hash of the canonical cryptographic proof object |
+| `proof_object` | JSON | Complete tamper-evident proof payload (timestamp, metadata, certificate) |
+| `blockchain_tx_hash` | VARCHAR(66) NULL | Anchored transaction hash on Ethereum/Sepolia |
+| `blockchain_block_number` | BIGINT NULL | Block number at anchor time |
+| `created_at` | TIMESTAMP | Timestamp of proof generation |
+
 ### `audit_logs`
 
 | Column | Type | Description |
@@ -304,68 +316,193 @@ Blockchain-Based-Document-Verification-System/
 
 ```solidity
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.0;
+pragma solidity ^0.8.20;
 
 contract DocumentRegistry {
+    enum DocumentStatus { Active, Revoked }
 
-    // Mapping: SHA-256 hash (bytes32) → block timestamp of registration
-    mapping(bytes32 => uint256) private documentTimestamps;
+    struct Document {
+        bytes32 docHash;
+        address issuer;
+        uint256 timestamp;
+        uint256 blockNumber;
+        DocumentStatus status;
+        string revocationReason;
+    }
 
-    // Mapping: SHA-256 hash → revocation status
-    mapping(bytes32 => bool) private revokedDocuments;
+    // Mapping from Document Hash -> Document Details
+    mapping(bytes32 => Document) public documents;
+    
+    // Mapping to check if hash exists
+    mapping(bytes32 => bool) public docExists;
 
-    // Address of the contract deployer (backend wallet)
-    address public owner;
+    event DocumentAnchored(bytes32 indexed docHash, address indexed issuer, uint256 timestamp);
+    event DocumentRevoked(bytes32 indexed docHash, string reason, address indexed by);
 
-    event DocumentStored(bytes32 indexed hash, uint256 timestamp);
-    event DocumentRevoked(bytes32 indexed hash, uint256 timestamp);
-
-    modifier onlyOwner() {
-        require(msg.sender == owner, "Not authorized");
+    modifier onlyIssuer(bytes32 _docHash) {
+        require(documents[_docHash].issuer == msg.sender, "Only issuer can revoke");
         _;
     }
 
-    constructor() {
-        owner = msg.sender;
+    /// @notice Anchor a SHA-256 document hash on-chain
+    function anchorDocument(bytes32 _docHash) external {
+        require(!docExists[_docHash], "Document already anchored");
+        require(_docHash != bytes32(0), "Invalid hash");
+
+        documents[_docHash] = Document({
+            docHash: _docHash,
+            issuer: msg.sender,
+            timestamp: block.timestamp,
+            blockNumber: block.number,
+            status: DocumentStatus.Active,
+            revocationReason: ""
+        });
+
+        docExists[_docHash] = true;
+
+        emit DocumentAnchored(_docHash, msg.sender, block.timestamp);
     }
 
-    /// @notice Anchor a document hash on-chain
-    function storeHash(bytes32 _hash) external onlyOwner {
-        require(documentTimestamps[_hash] == 0, "Hash already registered");
-        documentTimestamps[_hash] = block.timestamp;
-        emit DocumentStored(_hash, block.timestamp);
+    /// @notice Verify a document hash and retrieve on-chain metadata
+    function verifyDocument(bytes32 _docHash) external view returns (bool, address, uint256, DocumentStatus, string memory) {
+        require(docExists[_docHash], "Document not found");
+        Document memory doc = documents[_docHash];
+        return (true, doc.issuer, doc.timestamp, doc.status, doc.revocationReason);
     }
 
-    /// @notice Check whether a hash exists and is not revoked
-    function verifyHash(bytes32 _hash) external view returns (bool) {
-        return documentTimestamps[_hash] != 0 && !revokedDocuments[_hash];
-    }
+    /// @notice Revoke an anchored document with reason (authorized to issuer)
+    function revokeDocument(bytes32 _docHash, string memory _reason) external onlyIssuer(_docHash) {
+        require(documents[_docHash].status == DocumentStatus.Active, "Document already revoked");
+        
+        documents[_docHash].status = DocumentStatus.Revoked;
+        documents[_docHash].revocationReason = _reason;
 
-    /// @notice Revoke a previously registered hash
-    function revokeHash(bytes32 _hash) external onlyOwner {
-        require(documentTimestamps[_hash] != 0, "Hash not found");
-        revokedDocuments[_hash] = true;
-        emit DocumentRevoked(_hash, block.timestamp);
-    }
-
-    /// @notice Get the timestamp when a hash was registered
-    function getTimestamp(bytes32 _hash) external view returns (uint256) {
-        return documentTimestamps[_hash];
+        emit DocumentRevoked(_docHash, _reason, msg.sender);
     }
 }
 ```
 
 **Key design decisions:**
-- Only the **owner** (backend wallet) can store or revoke hashes — preventing unauthorized anchoring
-- `verifyHash` is a `view` function — costs no gas for the caller
-- `storeHash` rejects duplicate registrations — every document hash is unique on-chain
-- Events (`DocumentStored`, `DocumentRevoked`) provide an immutable on-chain audit trail
+- **On-chain Attestation:** Emits `DocumentAnchored` and `DocumentRevoked` events with block numbers and timestamps.
+- **Access Control:** Anchored documents record their `issuer`; only the original `issuer` can call `revokeDocument`.
+- **Zero-Gas Verification:** `verifyDocument` is a `view` function — free and instant for verifiers to inspect on-chain.
+- **Collision & Re-anchoring Prevention:** Duplicate hash anchoring is rejected at EVM level.
 
 ---
 
-## Quick start
+## 🚀 Production Cloud Deployment (Sepolia + Cloud MySQL + Render + Vercel)
 
-**Fastest way to run the full stack locally:**
+This repository is pre-configured for instant zero-downtime production deployment across free-tier cloud platforms.
+
+```
+┌─────────────────────────────────┐       ┌─────────────────────────────────┐
+│     Frontend (Vercel SPA)       │ ───►  │    Backend API (Render.com)     │
+│  React 19 + Tailwind + Vite     │       │     Express.js + Web3 Engine    │
+└─────────────────────────────────┘       └───────┬─────────────────┬───────┘
+                                                  │                 │
+                                                  ▼                 ▼
+                                    ┌──────────────────┐  ┌──────────────────┐
+                                    │  Cloud MySQL     │  │ Ethereum Sepolia │
+                                    │ (Aiven/Railway)  │  │ Smart Contract   │
+                                    └──────────────────┘  └──────────────────┘
+```
+
+---
+
+### Step 1 · Deploy Smart Contract to Ethereum Sepolia Testnet
+
+1. Get a Sepolia RPC URL from [Alchemy](https://www.alchemy.com/) or [Infura](https://www.infura.io/) (free).
+2. Obtain testnet Sepolia ETH from [Google Cloud Web3 Faucet](https://cloud.google.com/application/web3/faucet/ethereum/sepolia) or [Sepolia PoW Faucet](https://sepolia-faucet.pk910.de/).
+3. Export your testnet wallet's private key.
+4. In `blockchain/`, copy `.env.example` to `.env`:
+   ```bash
+   cd blockchain
+   cp .env.example .env
+   ```
+5. Fill in `SEPOLIA_RPC_URL` and `PRIVATE_KEY` (and optionally `ETHERSCAN_API_KEY`):
+   ```env
+   SEPOLIA_RPC_URL=https://eth-sepolia.g.alchemy.com/v2/your_alchemy_key
+   PRIVATE_KEY=your_wallet_private_key_without_0x
+   ETHERSCAN_API_KEY=your_etherscan_key_optional
+   ```
+6. Run the Sepolia deployment script:
+   ```bash
+   npm run deploy:sepolia
+   ```
+7. Note the printed **DocumentRegistry deployed address**. The script automatically saves the deployed contract ABI and address to `server/contracts/DocumentRegistry.json`.
+
+---
+
+### Step 2 · Setup Cloud-Hosted MySQL Database
+
+Use a free managed cloud MySQL provider (such as [Aiven for MySQL](https://aiven.io/), [Railway](https://railway.app/), or [TiDB Cloud](https://tidbcloud.com/)):
+
+1. Create a MySQL database named `doc_verify_db`.
+2. Connect using your MySQL GUI (e.g. MySQL Workbench, DBeaver) or CLI and run:
+   ```bash
+   mysql -h <host> -P <port> -u <user> -p<password> doc_verify_db < database/schema.sql
+   mysql -h <host> -P <port> -u <user> -p<password> doc_verify_db < database/seed.sql
+   ```
+3. Copy the database connection URI or credentials:
+   - Option A: Connection URI string: `mysql://user:password@host:port/doc_verify_db?ssl-mode=REQUIRED`
+   - Option B: Individual host, port, user, password, and database parameters.
+   *(The backend automatically activates SSL connection when connecting to remote cloud databases).*
+
+---
+
+### Step 3 · Deploy Backend to Render
+
+1. Log in to [Render.com](https://render.com).
+2. Click **New +** → **Web Service**.
+3. Connect your GitHub repository: `poojashardaprasad/Blockchain_Based_Document_Verification_System`.
+4. Configure service settings:
+   - **Root Directory:** `server`
+   - **Environment:** `Node`
+   - **Build Command:** `npm install`
+   - **Start Command:** `node server.js`
+   - **Instance Type:** `Free`
+5. Under **Environment Variables**, add:
+   | Key | Value | Notes |
+   |---|---|---|
+   | `NODE_ENV` | `production` | Production mode |
+   | `PORT` | `5001` | Render dynamically binds `PORT` |
+   | `DATABASE_URL` | `mysql://...` | Connection URI from Step 2 |
+   | `JWT_SECRET` | `<random-64-character-string>` | Secret key for auth tokens |
+   | `JWT_EXPIRES_IN` | `24h` | Token expiry |
+   | `CONTRACT_ADDRESS` | `0x...` | Deployed address from Step 1 |
+   | `BLOCKCHAIN_RPC_URL` | `https://eth-sepolia.g.alchemy.com/v2/...` | Sepolia RPC endpoint |
+   | `DEPLOYER_PRIVATE_KEY` | `<your-private-key>` | Wallet private key used to anchor documents |
+   | `FRONTEND_URL` | `https://<your-vercel-app>.vercel.app` | Vercel domain (set after Step 4) |
+6. Click **Deploy Web Service**.
+7. Once deployed, test your backend URL (e.g., `https://your-backend.onrender.com/api/health`).
+
+> **Tip:** You can also deploy using the included `render.yaml` Blueprint directly from the Render dashboard.
+
+---
+
+### Step 4 · Deploy Frontend to Vercel
+
+1. Log in to [Vercel](https://vercel.com).
+2. Click **Add New...** → **Project**.
+3. Import your GitHub repository: `poojashardaprasad/Blockchain_Based_Document_Verification_System`.
+4. In Project Settings:
+   - **Framework Preset:** `Vite`
+   - **Root Directory:** Click **Edit** and select `client`.
+   - **Build Command:** `npm run build`
+   - **Output Directory:** `dist`
+   - **Install Command:** `npm install`
+5. In **Environment Variables**, configure:
+   | Key | Value |
+   |---|---|
+   | `VITE_API_BASE_URL` | `https://your-backend.onrender.com/api` |
+   | `VITE_EXPLORER_URL` | `https://sepolia.etherscan.io` |
+6. Click **Deploy**.
+7. Vercel will build and deploy your site in ~30 seconds, giving you a live production URL like `https://doc-verify-client.vercel.app`.
+8. Copy your live Vercel URL and update `FRONTEND_URL` in your Render backend settings so CORS and QR code verification links point to your live site.
+
+---
+
+## Quick start (Local Development)
 
 ```bash
 git clone https://github.com/Shreyas-R-Gowda/Blockchain-Based-Document-Verification-System.git

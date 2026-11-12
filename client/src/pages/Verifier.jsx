@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import api from '../api/axios';
+import api, { SERVER_ROOT_URL } from '../api/axios';
 import {
     ShieldCheck,
     Upload,
@@ -156,7 +156,7 @@ const Verifier = () => {
                                             ) : (
                                                 <>
                                                     <p className="font-mono text-[10px] text-indigo-600 truncate mr-4">{result.txHash}</p>
-                                                    <a href={`https://etherscan.io/tx/${result.txHash}`} target="_blank" rel="noreferrer" className="p-2 hover:bg-indigo-50 rounded-xl transition-colors">
+                                                    <a href={`https://sepolia.etherscan.io/tx/${result.txHash}`} target="_blank" rel="noreferrer" className="p-2 hover:bg-indigo-50 rounded-xl transition-colors">
                                                         <ExternalLink className="w-4 h-4 text-indigo-600" />
                                                     </a>
                                                 </>
@@ -192,7 +192,7 @@ const Verifier = () => {
                                                 {/* Download Options */}
                                                 <div className="grid grid-cols-2 gap-3">
                                                     <a
-                                                        href={`http://${window.location.hostname}:5001${result.certificate.downloadPDF}`}
+                                                        href={`${SERVER_ROOT_URL}${result.certificate.downloadPDF}`}
                                                         className="flex items-center justify-center gap-2 px-4 py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl shadow-md hover:shadow-lg transition-all transform hover:scale-105"
                                                         download
                                                     >
@@ -201,7 +201,7 @@ const Verifier = () => {
                                                     </a>
 
                                                     <a
-                                                        href={`http://${window.location.hostname}:5001${result.certificate.downloadJSON}`}
+                                                        href={`${SERVER_ROOT_URL}${result.certificate.downloadJSON}`}
                                                         className="flex items-center justify-center gap-2 px-4 py-3 bg-cyan-600 hover:bg-cyan-700 text-white font-bold rounded-xl shadow-md hover:shadow-lg transition-all transform hover:scale-105"
                                                         download
                                                     >

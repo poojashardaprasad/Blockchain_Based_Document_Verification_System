@@ -88,3 +88,17 @@ CREATE TABLE IF NOT EXISTS audit_logs (
     timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL
 );
+
+-- Verification Proofs Table (Cryptographic Verification Certificates)
+CREATE TABLE IF NOT EXISTS verification_proofs (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    verification_id INT NOT NULL,
+    proof_hash CHAR(64) NOT NULL UNIQUE,
+    proof_object JSON NOT NULL,
+    blockchain_tx_hash VARCHAR(66) NULL,
+    blockchain_block_number BIGINT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (verification_id) REFERENCES verifications(id) ON DELETE CASCADE,
+    INDEX idx_proof_hash (proof_hash),
+    INDEX idx_created_at (created_at)
+);

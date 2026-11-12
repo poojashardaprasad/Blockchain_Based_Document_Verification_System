@@ -6,7 +6,7 @@ const path = require('path');
 class CertificateService {
 
     constructor() {
-        this.certDir = path.join(__dirname, '../../certificates');
+        this.certDir = process.env.CERTIFICATE_DIR || path.join(__dirname, '../certificates');
         this.ensureCertificateDirectory();
     }
 
@@ -143,7 +143,8 @@ class CertificateService {
                 doc.moveDown(2);
 
                 // QR Code for verification
-                const qrUrl = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/verify-proof/${proofHash}`;
+                const frontendBase = (process.env.FRONTEND_URL || 'http://localhost:5173').replace(/\/+$/, '');
+                const qrUrl = `${frontendBase}/verify-proof/${proofHash}`;
                 const qrImage = await QRCode.toDataURL(qrUrl, {
                     errorCorrectionLevel: 'H',
                     width: 200

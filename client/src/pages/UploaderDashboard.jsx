@@ -151,7 +151,7 @@ const UploaderDashboard = () => {
                                                 {doc.status}
                                             </span>
                                             {doc.tx_hash && (
-                                                <a href={`https://etherscan.io/tx/${doc.tx_hash}`} target="_blank" rel="noreferrer"
+                                                <a href={`https://sepolia.etherscan.io/tx/${doc.tx_hash}`} target="_blank" rel="noreferrer"
                                                     className="text-xs text-indigo-600 hover:underline flex items-center gap-1 justify-end mt-1">
                                                     View TX <ExternalLink className="w-3 h-3" />
                                                 </a>
