@@ -14,11 +14,13 @@ async function main() {
   const documentRegistry = await DocumentRegistry.deploy();
 
   await documentRegistry.deployed();
+  const receipt = await documentRegistry.deployTransaction.wait(1);
 
-  console.log(`✅ DocumentRegistry successfully deployed!`);
+  console.log(`✅ DocumentRegistry successfully deployed & mined!`);
   console.log(`Contract Address : ${documentRegistry.address}`);
   console.log(`Deployment Tx    : ${documentRegistry.deployTransaction.hash}`);
-  console.log(`Block Number     : ${documentRegistry.deployTransaction.blockNumber || 'pending'}`);
+  console.log(`Block Number     : ${receipt.blockNumber}`);
+  console.log(`Gas Used         : ${receipt.gasUsed.toString()}`);
 
   // Export artifact with ABI to server for convenience
   try {
@@ -31,6 +33,8 @@ async function main() {
     const exportData = {
       contractName: artifact.contractName,
       address: documentRegistry.address,
+      transactionHash: documentRegistry.deployTransaction.hash,
+      blockNumber: receipt.blockNumber,
       network: network,
       abi: artifact.abi,
       deployedAt: new Date().toISOString()

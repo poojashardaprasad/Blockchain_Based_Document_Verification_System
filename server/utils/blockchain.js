@@ -12,12 +12,27 @@ let contract;
 let account;
 
 const loadArtifact = () => {
-    if (fs.existsSync(HARDHAT_ARTIFACT_PATH)) {
-        return JSON.parse(fs.readFileSync(HARDHAT_ARTIFACT_PATH, 'utf8'));
-    }
+    let serverArtifact = null;
+    let hardhatArtifact = null;
+
     if (fs.existsSync(SERVER_ARTIFACT_PATH)) {
-        return JSON.parse(fs.readFileSync(SERVER_ARTIFACT_PATH, 'utf8'));
+        try {
+            serverArtifact = JSON.parse(fs.readFileSync(SERVER_ARTIFACT_PATH, 'utf8'));
+        } catch (e) {}
     }
+    if (fs.existsSync(HARDHAT_ARTIFACT_PATH)) {
+        try {
+            hardhatArtifact = JSON.parse(fs.readFileSync(HARDHAT_ARTIFACT_PATH, 'utf8'));
+        } catch (e) {}
+    }
+
+    if (serverArtifact || hardhatArtifact) {
+        return {
+            ...(hardhatArtifact || {}),
+            ...(serverArtifact || {})
+        };
+    }
+
     throw new Error(
         'Contract artifact not found! Run "cd blockchain && npx hardhat compile" or ensure server/contracts/DocumentRegistry.json exists.'
     );

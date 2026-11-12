@@ -1,7 +1,9 @@
 {
-  "_format": "hh-sol-artifact-1",
   "contractName": "DocumentRegistry",
-  "sourceName": "contracts/DocumentRegistry.sol",
+  "address": "0x1f22F27dAdAFc8A723193635cB492Cfa9e550731",
+  "transactionHash": "0xf00c19914d81bd9d55e1981a6d4b1434d470e662ad6cf752b47f930eada5b647",
+  "blockNumber": 12120764,
+  "network": "sepolia",
   "abi": [
     {
       "anonymous": false,
@@ -186,5 +188,6 @@
       "stateMutability": "view",
       "type": "function"
     }
-  ]
+  ],
+  "deployedAt": "2026-11-12T18:56:38.060Z"
 }

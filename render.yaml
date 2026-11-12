@@ -23,7 +23,7 @@ services:
       - key: BLOCKCHAIN_RPC_URL
         value: https://rpc.sepolia.org
       - key: CONTRACT_ADDRESS
-        sync: false
+        value: 0x1f22F27dAdAFc8A723193635cB492Cfa9e550731
       - key: PRIVATE_KEY
         sync: false
       - key: DATABASE_URL
