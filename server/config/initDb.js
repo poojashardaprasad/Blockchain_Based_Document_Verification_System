@@ -137,6 +137,19 @@ async function initializeDatabase() {
         `);
 
         console.log('✅ Database schema verified: all 8 core tables and indexes are ready.');
+
+        // Seed initial admin user if none exists
+        const [admins] = await db.query("SELECT id FROM users WHERE role = 'admin' LIMIT 1");
+        if (admins.length === 0) {
+            // Password: admin123 (bcrypt cost 10)
+            const defaultAdminHash = '$2b$10$EixZaYVK1fsbw1ZfbX3OXePaWxn96p36WQoeG6Lruj3vjPGga31lW';
+            await db.query(
+                "INSERT INTO users (name, email, password_hash, role) VALUES (?, ?, ?, ?)",
+                ['System Admin', 'admin@example.com', defaultAdminHash, 'admin']
+            );
+            console.log('👤 Default admin account seeded: admin@example.com / admin123');
+        }
+
         return true;
     } catch (error) {
         console.warn('⚠️  Database initialization notice:', error.message);

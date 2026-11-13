@@ -60,8 +60,7 @@ const Signup = () => {
                         >
                             <option value="verifier">Verifier (Public)</option>
                             <option value="uploader">Uploader (Institution)</option>
-                            {/* Admin signup usually restricted, but allowed here for demo if needed */}
-                            {/* <option value="admin">Admin</option> */}
+                            <option value="admin">Admin</option>
                         </select>
                     </div>
 
