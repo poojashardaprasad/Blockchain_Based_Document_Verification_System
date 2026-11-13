@@ -15,8 +15,20 @@ const calculateFileHash = (filePath) => {
 exports.uploadDocument = async (req, res) => {
     if (!req.file) return res.status(400).json({ message: 'No file uploaded' });
     const uploaderId = req.user.id; // From JWT
-    const { institution_id } = req.user; // From JWT
+    let { institution_id } = req.user; // From JWT
     const { expiryDate } = req.body; // New: Expiry date from form
+
+    // Auto-heal: If institution_id is not yet set on user, check if an approved institution exists
+    if (!institution_id) {
+        const [approvedReq] = await db.query(
+            'SELECT i.id as institution_id FROM institution_requests ir JOIN institutions i ON ir.institution_name = i.name WHERE ir.uploader_id = ? AND ir.status = "approved" ORDER BY ir.id DESC LIMIT 1',
+            [uploaderId]
+        );
+        if (approvedReq.length > 0 && approvedReq[0].institution_id) {
+            institution_id = approvedReq[0].institution_id;
+            await db.query('UPDATE users SET institution_id = ? WHERE id = ?', [institution_id, uploaderId]);
+        }
+    }
 
     // Verify Active Institution
     if (!institution_id) return res.status(403).json({ message: 'No institution linked' });

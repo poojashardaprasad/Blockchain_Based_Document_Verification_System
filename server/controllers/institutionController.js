@@ -21,14 +21,23 @@ exports.getMyStatus = async (req, res) => {
     try {
         // Check current link
         const [user] = await db.query('SELECT institution_id FROM users WHERE id = ?', [userId]);
-        if (user[0].institution_id) {
+        if (user.length > 0 && user[0].institution_id) {
             const [inst] = await db.query('SELECT * FROM institutions WHERE id = ?', [user[0].institution_id]);
-            return res.json({ status: 'approved', institution: inst[0] });
+            if (inst.length > 0) {
+                return res.json({ status: 'approved', institution: inst[0] });
+            }
         }
 
-        // Check pending requests
+        // Check requests and auto-link if approved
         const [requests] = await db.query('SELECT * FROM institution_requests WHERE uploader_id = ? ORDER BY created_at DESC LIMIT 1', [userId]);
         if (requests.length > 0) {
+            if (requests[0].status === 'approved') {
+                const [inst] = await db.query('SELECT * FROM institutions WHERE name = ? ORDER BY id DESC LIMIT 1', [requests[0].institution_name]);
+                if (inst.length > 0) {
+                    await db.query('UPDATE users SET institution_id = ? WHERE id = ?', [inst[0].id, userId]);
+                    return res.json({ status: 'approved', institution: inst[0] });
+                }
+            }
             return res.json({ status: requests[0].status, request: requests[0] });
         }
 
